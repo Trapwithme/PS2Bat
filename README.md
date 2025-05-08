@@ -17,6 +17,9 @@ This PowerShell script converts `.ps1` PowerShell scripts into hidden `.bat` lau
 ## ⚙️ Requirements
 
 - Windows OS
-- PowerShell 5.1 or higher
+- PowerShell
 - Admin rights not required (writes only to user-level paths and registry)
-
+Why No Admin Needed:
+    HKCU stands for HKEY_CURRENT_USER — it only affects the currently logged-in user.
+    Any standard user account can read and write to their own HKCU keys without elevation.
+    This is commonly used for user-specific auto-start tasks (like launching apps after login) ;).
