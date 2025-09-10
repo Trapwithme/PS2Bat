@@ -7,8 +7,8 @@ param(
     [Parameter(Position=0, HelpMessage="Path or pattern to PowerShell script(s)")]
     [string]$Filepattern = "",
     
-    [Parameter(HelpMessage="Enable verbose output")]
-    [switch]$Verbose,
+    [Parameter(HelpMessage="Enable detailed output")]
+    [switch]$Detailed,
     
     [Parameter(HelpMessage="Test generated batch files without executing")]
     [switch]$Test,
@@ -27,7 +27,7 @@ param(
 )
 
 # Global variables
-$Script:LogLevel = if ($Verbose) { "Verbose" } else { "Normal" }
+$Script:LogLevel = if ($Detailed) { "Verbose" } else { "Normal" }
 $Script:TestMode = $Test
 $Script:CleanupMode = $Cleanup
 
@@ -68,7 +68,7 @@ PARAMETERS:
     Filepattern     Path or pattern to PowerShell script(s) (supports wildcards)
     
 OPTIONS:
-    -Verbose        Enable detailed logging output
+    -Detailed       Enable detailed logging output
     -Test           Test generated batch files without executing
     -Cleanup        Remove generated files and registry entries
     -OutputDir      Custom output directory (default: %APPDATA%\SVCDef)
@@ -76,7 +76,7 @@ OPTIONS:
     -Help           Show this help information
 
 EXAMPLES:
-    .\ps2bat.ps1 "C:\Scripts\*.ps1" -Verbose
+    .\ps2bat.ps1 "C:\Scripts\*.ps1" -Detailed
     .\ps2bat.ps1 "MyScript.ps1" -Test
     .\ps2bat.ps1 -Cleanup
     .\ps2bat.ps1 "Script.ps1" -OutputDir "C:\CustomPath"
