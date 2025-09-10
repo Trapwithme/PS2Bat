@@ -68,8 +68,8 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 ### Advanced Usage
 
 ```powershell
-# Enable verbose logging
-.\ps2bat.ps1 "MyScript.ps1" -Verbose
+# Enable detailed logging
+.\ps2bat.ps1 "MyScript.ps1" -Detailed
 
 # Test generated batch files without executing
 .\ps2bat.ps1 "MyScript.ps1" -Test
@@ -95,7 +95,7 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
 | `Filepattern` | String | Path or pattern to PowerShell script(s) | `"C:\Scripts\*.ps1"` |
-| `-Verbose` | Switch | Enable detailed logging output | `-Verbose` |
+| `-Detailed` | Switch | Enable detailed logging output | `-Detailed` |
 | `-Test` | Switch | Test generated batch files without executing | `-Test` |
 | `-Cleanup` | Switch | Remove generated files and registry entries | `-Cleanup` |
 | `-OutputDir` | String | Custom output directory | `-OutputDir "C:\Custom"` |
@@ -155,7 +155,7 @@ The generated `.vbs` file contains:
 ### Example 2: Batch Processing with Verbose Output
 ```powershell
 # Convert multiple scripts with detailed logging
-.\ps2bat.ps1 "C:\Scripts\*.ps1" -Verbose
+.\ps2bat.ps1 "C:\Scripts\*.ps1" -Detailed
 ```
 
 ### Example 3: Testing Before Execution
@@ -201,10 +201,10 @@ The generated `.vbs` file contains:
 
 ### Debug Mode
 
-Enable verbose logging to troubleshoot issues:
+Enable detailed logging to troubleshoot issues:
 
 ```powershell
-.\ps2bat.ps1 "MyScript.ps1" -Verbose
+.\ps2bat.ps1 "MyScript.ps1" -Detailed
 ```
 
 ### Log Files
