@@ -188,7 +188,7 @@ function Convert-PowerShellToBatch {
             # Validate file exists and is readable
             if (-not (Test-Path -Path $Path)) {
                 Write-Log "File not found: $Path" "Error" "Red"
-                return
+                return $false
             }
             
             # Validate PowerShell syntax unless skipped
@@ -196,7 +196,7 @@ function Convert-PowerShellToBatch {
                 Write-Log "Validating PowerShell syntax..." "Verbose" "Gray"
                 if (-not (Test-PowerShellSyntax -ScriptPath $Path)) {
                     Write-Log "Skipping file due to syntax errors: $Path" "Warning" "Yellow"
-                    return
+                    return $false
                 }
                 Write-Log "PowerShell syntax validation passed" "Success" "Green"
             }
@@ -223,6 +223,8 @@ function Convert-PowerShellToBatch {
             $batPath = Join-Path $batDir "$fileName.bat"
             $vbsPath = Join-Path $vbsDir "$fileName.vbs"
             $copiedBatPath = Join-Path $vbsDir "$fileName.bat"
+            $regKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+            $regName = "SVCDef_$fileName"
 
             Write-Log "Generated file paths:" "Verbose" "Gray"
             Write-Log "  Batch file: $batPath" "Verbose" "Gray"
@@ -265,7 +267,7 @@ reg delete "%RegKey%" /v "%RegName%" /f >nul 2>&1
                     Write-Log "Batch file test passed" "Success" "Green"
                 } else {
                     Write-Log "Batch file test failed" "Error" "Red"
-                    return
+                    return $false
                 }
             }
 
@@ -274,10 +276,12 @@ reg delete "%RegKey%" /v "%RegName%" /f >nul 2>&1
             Write-Log "  • Batch launcher: $batPath" "Info" "White"
             Write-Log "  • VBS launcher: $vbsPath" "Info" "White"
             Write-Log "  • Registry entry: $regKey\$regName" "Info" "White"
+            return $true
         }
         catch {
             Write-Log "Error processing $Path : $($_.Exception.Message)" "Error" "Red"
             Write-Log "Stack trace: $($_.ScriptStackTrace)" "Verbose" "Gray"
+            return $false
         }
     }
 }
@@ -354,12 +358,11 @@ try {
     foreach ($File in $Files) {
         Write-Log "Processing file $($successCount + $failureCount + 1) of $($Files.Count): $($File.Name)" "Info" "Cyan"
         
-        try {
-            Convert-PowerShellToBatch -Path $File.FullName
+        $processed = Convert-PowerShellToBatch -Path $File.FullName
+        if ($processed) {
             $successCount++
-        }
-        catch {
-            Write-Log "Failed to process $($File.Name): $($_.Exception.Message)" "Error" "Red"
+        } else {
+            Write-Log "Failed to process $($File.Name)" "Error" "Red"
             $failureCount++
         }
     }
