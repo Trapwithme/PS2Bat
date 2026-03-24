@@ -2,7 +2,7 @@
 
 A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden `.bat` launchers using base64 encoding and Windows scripting. Perfect for automation, deployment, and silent execution scenarios.
 
-![Version](https://img.shields.io/badge/version-2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.1-blue.svg)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.0+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 
@@ -12,6 +12,7 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 
 ### Core Functionality
 - 🔐 **Base64 Encoding**: Encodes PowerShell scripts for hidden execution
+- 🧬 **Alternate Encoding Mode**: Optional Gzip+Base64 payload for more compact/obfuscated launch content
 - 📦 **Standalone Batch Files**: Creates portable `.bat` files that generate VBS launchers
 - 📜 **VBS Launcher**: Creates silent VBS launchers for hidden PowerShell execution
 - 🧠 **RunOnce Integration**: Registers VBS files in RunOnce registry for next login execution
@@ -24,6 +25,7 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 - 🧪 **Test Mode**: Safe testing of generated batch files without execution
 - 🧹 **Cleanup Functionality**: Remove generated files and registry entries
 - ⚙️ **Custom Configuration**: Flexible output directories and behavior options
+- 🥷 **Stealth Mode**: Adds non-interactive/no-logo launch flags and reduced visible noise
 - 📈 **Progress Tracking**: Real-time progress indicators for batch operations
 - 🛡️ **Security Features**: Execution policy checks and validation
 
@@ -77,6 +79,12 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 # Use custom output directory
 .\ps2bat.ps1 "MyScript.ps1" -OutputDir "C:\CustomPath"
 
+# Use compressed payload + stealth mode
+.\ps2bat.ps1 "MyScript.ps1" -PayloadEncoding GzipBase64 -Stealth
+
+# Run only on next login (RunOnce)
+.\ps2bat.ps1 "MyScript.ps1" -RunMode RunOnce
+
 # Skip PowerShell syntax validation
 .\ps2bat.ps1 "MyScript.ps1" -SkipValidation
 
@@ -99,6 +107,9 @@ A powerful PowerShell script that converts `.ps1` PowerShell scripts into hidden
 | `-Test` | Switch | Test generated batch files without executing | `-Test` |
 | `-Cleanup` | Switch | Remove generated files and registry entries | `-Cleanup` |
 | `-OutputDir` | String | Custom output directory | `-OutputDir "C:\Custom"` |
+| `-PayloadEncoding` | String | Payload strategy: `Base64` or `GzipBase64` | `-PayloadEncoding GzipBase64` |
+| `-RunMode` | String | Launch behavior: `Immediate`, `RunOnce`, or `Both` | `-RunMode RunOnce` |
+| `-Stealth` | Switch | Adds extra hidden/non-interactive launch flags | `-Stealth` |
 | `-SkipValidation` | Switch | Skip PowerShell syntax validation | `-SkipValidation` |
 | `-Help` | Switch | Show help information | `-Help` |
 

